@@ -1,167 +1,69 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-<meta name="theme-color" content="#000000" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<title>Video Delay</title>
-<style>
-:root{color-scheme:dark;--panel:rgba(14,14,14,.72);--line:rgba(255,255,255,.18);--muted:rgba(255,255,255,.65)}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-body{position:fixed;inset:0}
-#stage{position:absolute;inset:0;background:#000;display:grid;place-items:center}
-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
-#live{opacity:0;pointer-events:none}
-#playback{opacity:1}
-.mirror{transform:scaleX(-1)}
-#startScreen{position:absolute;inset:0;z-index:5;display:grid;place-items:center;background:#000}
-#startBtn{border:1px solid rgba(255,255,255,.28);background:#fff;color:#000;font-size:18px;font-weight:700;border-radius:999px;padding:16px 28px;min-width:150px}
-#ui{position:absolute;z-index:4;inset:0;pointer-events:none;padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px)}
-.top{position:absolute;top:calc(env(safe-area-inset-top) + 12px);left:calc(env(safe-area-inset-left) + 12px);display:flex;gap:8px;align-items:center;pointer-events:auto}
-.pill,.icon{height:44px;border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#fff;border-radius:14px}
-.pill{padding:0 14px;font-size:14px;font-weight:650}
-.icon{width:44px;font-size:20px;display:grid;place-items:center}
-#delayControl{position:absolute;right:calc(env(safe-area-inset-right) + 12px);top:50%;transform:translateY(-50%);width:76px;height:min(72vh,560px);border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:22px;pointer-events:auto;display:flex;flex-direction:column;align-items:center;padding:12px 8px;gap:8px}
-#delayValue{font-size:20px;font-weight:750;line-height:1;white-space:nowrap}
-#delayHint{font-size:10px;color:var(--muted)}
-.sliderWrap{flex:1;display:grid;place-items:center;width:100%;overflow:hidden}
-#delaySlider{width:360px;height:44px;transform:rotate(-90deg);touch-action:none;accent-color:#fff}
-#status{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 14px);transform:translateX(-50%);font-size:12px;color:rgba(255,255,255,.78);background:rgba(0,0,0,.42);padding:7px 10px;border-radius:999px;white-space:nowrap;opacity:0;transition:.2s}
-#status.show{opacity:1}
-#settings{position:absolute;z-index:7;top:calc(env(safe-area-inset-top) + 64px);left:calc(env(safe-area-inset-left) + 12px);width:min(300px,calc(100vw - 24px));background:rgba(18,18,18,.94);border:1px solid var(--line);border-radius:18px;padding:14px;display:none;box-shadow:0 18px 60px rgba(0,0,0,.45)}
-#settings.open{display:block}
-.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid rgba(255,255,255,.09)}
-.row:last-child{border-bottom:0}.label{font-size:14px}.sub{font-size:11px;color:var(--muted);margin-top:2px}
-select,.toggle{font:inherit;color:#fff;background:#282828;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:8px}
-.toggle{min-width:54px}.danger{color:#ffb1b1}
-#unsupported{display:none;position:absolute;z-index:10;inset:20px;background:#111;border:1px solid #333;border-radius:20px;padding:24px;place-items:center;text-align:center}
-@media (max-height:520px){#delayControl{height:78vh;width:70px}.pill,.icon{height:40px}.icon{width:40px}}
-</style>
-</head>
-<body>
-<div id="stage">
-  <video id="live" autoplay muted playsinline></video>
-  <video id="playback" autoplay muted playsinline></video>
-  <div id="startScreen"><button id="startBtn">Start camera</button></div>
-  <div id="ui">
-    <div class="top">
-      <button id="runBtn" class="pill" hidden>Stop</button>
-      <button id="settingsBtn" class="icon" aria-label="Settings">⚙︎</button>
-    </div>
-    <div id="delayControl">
-      <div id="delayValue">10 s</div><div id="delayHint">DELAY</div>
-      <div class="sliderWrap"><input id="delaySlider" type="range" min="1" max="120" step="1" value="10" aria-label="Delay seconds"></div>
-    </div>
-    <div id="status"></div>
-  </div>
-  <div id="settings">
-    <div class="row"><div><div class="label">Quality</div><div class="sub">Standard recommended</div></div><select id="quality"><option value="performance">Performance</option><option value="standard" selected>Standard</option><option value="high">High</option></select></div>
-    <div class="row"><div><div class="label">Camera</div></div><select id="camera"><option value="environment" selected>Back</option><option value="user">Front</option></select></div>
-    <div class="row"><div><div class="label">Mirror</div></div><button id="mirrorBtn" class="toggle">Off</button></div>
-    <div class="row"><div><div class="label">Local only</div><div class="sub">Nothing is uploaded or saved.</div></div></div>
-  </div>
-  <div id="unsupported"><div><h2>Camera unavailable</h2><p>This browser needs camera access and MediaRecorder support. Open the page via HTTPS in a current Safari, Chrome or Edge browser.</p></div></div>
-</div>
-<script>
-(() => {
-'use strict';
-const $=id=>document.getElementById(id);
-const live=$('live'), playback=$('playback'), startScreen=$('startScreen'), startBtn=$('startBtn'), runBtn=$('runBtn');
-const slider=$('delaySlider'), delayValue=$('delayValue'), status=$('status'), settings=$('settings');
-const quality=$('quality'), camera=$('camera'), mirrorBtn=$('mirrorBtn');
-let stream=null, recorder=null, running=false, mirrored=false;
-let segments=[]; // independently playable short clips: {url,blob,start,end}
-let segmentStart=0, segmentTimer=null, playToken=0, currentUrl=null;
-const SEGMENT_MS=2000, KEEP_MS=126000;
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#000"><title>Video Delay</title><style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:manipulation}#cam{position:fixed;width:1px;height:1px;opacity:.001;pointer-events:none}#out{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}.top{position:fixed;top:max(12px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:18px;background:rgba(0,0,0,.48);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:3}.top button{border:0;color:#fff;background:transparent;font-size:24px;width:42px;height:42px;border-radius:50%}.delay{min-width:64px;text-align:center;font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}.start{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:3;border:0;border-radius:22px;padding:11px 22px;font-weight:700;font-size:16px;background:#fff;color:#000}.settings{position:fixed;right:12px;bottom:max(18px,env(safe-area-inset-bottom));z-index:4}.gear{border:0;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:18px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}.panel{position:absolute;right:0;bottom:48px;display:none;min-width:150px;padding:8px;border-radius:16px;background:rgba(20,20,20,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}.panel.open{display:block}.qbtn{width:100%;border:0;border-radius:11px;padding:10px 12px;margin:2px 0;background:transparent;color:#fff;text-align:left;font:inherit}.qbtn.active{background:rgba(255,255,255,.16);font-weight:700}.diag{margin:7px 4px 3px;padding-top:7px;border-top:1px solid rgba(255,255,255,.12);font-size:11px;color:#bbb;line-height:1.45}.modebtn{width:100%;border:0;border-radius:11px;padding:9px 12px;margin:2px 0;background:transparent;color:#fff;text-align:left;font:inherit}.modebtn.active{background:rgba(255,255,255,.16);font-weight:700}.badge{position:fixed;left:12px;bottom:max(18px,env(safe-area-inset-bottom));z-index:3;font-size:12px;padding:6px 9px;border-radius:12px;background:rgba(0,0,0,.45);color:#ddd}.msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:28px;text-align:center;background:#080808;z-index:10}.msg>div{max-width:520px;line-height:1.45}.msg b{display:block;font-size:20px;margin-bottom:8px}
+</style></head><body><video id="cam" autoplay muted playsinline></video><canvas id="out"></canvas><div class="top"><button id="minus">−</button><div class="delay"><span id="d">10</span> s</div><button id="plus">+</button></div><button id="start" class="start">Start</button><div id="badge" class="badge">720p · 30 fps · 60 s · v11 diagnostic</div><div class="settings"><button id="gear" class="gear" aria-label="Quality">⚙︎</button><div id="panel" class="panel"><button class="qbtn active" data-q="720">720p</button><button class="qbtn" data-q="1080">1080p</button><div class="diag" id="diag">Camera input: —</div><button class="modebtn active" data-mode="delay">Delayed</button><button class="modebtn" data-mode="live">Live camera</button></div></div><div id="msg" class="msg"><div><b>Browser not supported</b><span id="msgtext"></span></div></div><script>
+(()=>{
+const MAX=60,FPS=30,KEY_EVERY=30;let quality=720,W=1280,H=720,BITRATE=8_000_000;
+const cam=document.querySelector('#cam'),canvas=document.querySelector('#out'),ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
+const dEl=document.querySelector('#d'),startBtn=document.querySelector('#start'),msg=document.querySelector('#msg'),msgtext=document.querySelector('#msgtext'),badge=document.querySelector('#badge'),gear=document.querySelector('#gear'),panel=document.querySelector('#panel');
+canvas.width=W;canvas.height=H;let delay=10,running=false,stream=null,encoder=null,decoder=null,chunks=[],configs=[],startPerf=0,lastCapture=0,lastShown=-1,decodeTarget=-1,decodeBusy=false,raf=0,viewMode="delay";
+function fail(t){msgtext.textContent=t;msg.style.display='flex'}
+function supported(){return !!(navigator.mediaDevices?.getUserMedia&&window.VideoEncoder&&window.VideoDecoder&&window.VideoFrame)}
+async function codec(){const avcCodec=H>720?'avc1.420028':'avc1.42001f';for(const c of [{codec:avcCodec,avc:{format:'annexb'}},{codec:'vp8'}]){try{let r=await VideoEncoder.isConfigSupported({codec:c.codec,width:W,height:H,bitrate:BITRATE,framerate:FPS,...(c.avc?{avc:c.avc}:{})});if(r.supported)return c}catch(e){}}return null}
+function trim(nowUs){
+  /* Keep a decodable rolling window. We only cut at a keyframe boundary. */
+  const cut=nowUs-(MAX+2)*1e6;
+  if(chunks.length<2||chunks[0].timestamp>=cut)return;
 
-function say(msg,ms=1800){status.textContent=msg;status.classList.add('show');clearTimeout(say.t);say.t=setTimeout(()=>status.classList.remove('show'),ms)}
-function qualityConstraints(){
- const q=quality.value;
- if(q==='performance') return {width:{ideal:640},height:{ideal:480},frameRate:{ideal:24,max:30}};
- if(q==='high') return {width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30,max:30}};
- return {width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
+  /* Find the first keyframe at/after the cutoff. Everything before it can go. */
+  let removeCount=0;
+  for(let i=0;i<chunks.length;i++){
+    if(chunks[i].timestamp>=cut&&chunks[i].type==='key'){removeCount=i;break}
+  }
+  if(removeCount<=0)return;
+
+  /* playIndex is an index into chunks, so it MUST move with the array. */
+  if(playIndex>=0){
+    if(playIndex<removeCount){
+      playIndex=-1;
+      needSeek=true;
+    }else{
+      playIndex-=removeCount;
+    }
+  }
+  chunks.splice(0,removeCount);
+
+  /* Decoder configs are tiny. Keep the newest config from before the retained
+     window plus all later configs, so any future seek can still configure. */
+  if(configs.length>1&&chunks.length){
+    const firstTs=chunks[0].timestamp;
+    let anchor=0;
+    for(let i=0;i<configs.length;i++){
+      if(configs[i].timestamp<=firstTs)anchor=i; else break;
+    }
+    if(anchor>0)configs.splice(0,anchor);
+  }
 }
-function bitrate(){return quality.value==='high'?5500000:quality.value==='performance'?1200000:2800000}
-function bestMime(){
- const candidates=['video/mp4;codecs=avc1.42E01E','video/mp4','video/webm;codecs=vp8','video/webm'];
- return candidates.find(t=>window.MediaRecorder?.isTypeSupported?.(t)) || '';
-}
-async function openCamera(){
- if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){$('unsupported').style.display='grid';return false}
- stopTracks();
- const constraints={audio:false,video:{...qualityConstraints(),facingMode:{ideal:camera.value}}};
- try{stream=await navigator.mediaDevices.getUserMedia(constraints)}catch(e){
-   try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:true})}catch(err){say('Camera permission needed',3000);throw err}
- }
- live.srcObject=stream; await live.play().catch(()=>{}); return true;
-}
-function stopTracks(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}live.srcObject=null}
-function clearSegments(){segments.forEach(s=>URL.revokeObjectURL(s.url));segments=[];if(currentUrl){URL.revokeObjectURL(currentUrl);currentUrl=null}}
-function makeRecorder(){
- const mime=bestMime(), opts={videoBitsPerSecond:bitrate()}; if(mime)opts.mimeType=mime;
- return new MediaRecorder(stream,opts);
-}
-function beginSegment(){
- if(!running||!stream)return;
- let chunks=[]; segmentStart=performance.now();
- try{recorder=makeRecorder()}catch(e){say('Recording format not supported',3000);return}
- recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
- recorder.onstop=()=>{
-   const end=performance.now();
-   if(chunks.length){const type=recorder.mimeType||chunks[0].type||'video/mp4';const blob=new Blob(chunks,{type});const url=URL.createObjectURL(blob);segments.push({blob,url,start:segmentStart,end});prune(end)}
-   if(running) setTimeout(beginSegment,0);
- };
- recorder.start();
- segmentTimer=setTimeout(()=>{if(recorder&&recorder.state==='recording')recorder.stop()},SEGMENT_MS);
-}
-function prune(now){
- const cutoff=now-KEEP_MS;
- while(segments.length&&segments[0].end<cutoff){const s=segments.shift(); if(s.url!==currentUrl)URL.revokeObjectURL(s.url)}
-}
-function targetSegment(){
- const target=performance.now()-(Number(slider.value)*1000);
- let best=null;
- for(const s of segments){if(s.start<=target)best=s;else break}
- return best;
-}
-async function showDelayed(){
- if(!running)return;
- const token=++playToken, s=targetSegment();
- if(!s){playback.removeAttribute('src');playback.load();say('Building buffer…',600);setTimeout(showDelayed,350);return}
- if(currentUrl!==s.url){currentUrl=s.url;playback.src=s.url;playback.load()}
- const target=performance.now()-(Number(slider.value)*1000);
- const offset=Math.max(0,Math.min((target-s.start)/1000,Math.max(0,(s.end-s.start)/1000-.05)));
- try{playback.currentTime=offset;await playback.play()}catch(e){}
- const remaining=Math.max(200,(s.end-target));
- setTimeout(()=>{if(token===playToken)showDelayed()},Math.min(remaining+40,500));
-}
-async function start(){
- if(running)return;
- const ok=await openCamera();if(!ok)return;
- clearSegments(); running=true; runBtn.hidden=false;runBtn.textContent='Stop';startScreen.style.display='none';beginSegment();showDelayed();say('Buffering…');
-}
-function stop(){
- running=false;clearTimeout(segmentTimer);++playToken;
- if(recorder&&recorder.state==='recording')recorder.stop();
- playback.pause();playback.removeAttribute('src');playback.load();stopTracks();clearSegments();runBtn.hidden=true;startScreen.style.display='grid';startBtn.textContent='Start camera';say('Stopped');
-}
-async function restartCamera(){if(!running)return;running=false;clearTimeout(segmentTimer);++playToken;if(recorder&&recorder.state==='recording')recorder.stop();stopTracks();clearSegments();await new Promise(r=>setTimeout(r,120));running=true;await openCamera();beginSegment();showDelayed();say('Buffer restarted')}
-function updateDelay(){delayValue.textContent=slider.value+' s';localStorage.setItem('vd-delay',slider.value);if(running){++playToken;showDelayed()}}
-startBtn.addEventListener('click',()=>start().catch(()=>{}));runBtn.addEventListener('click',stop);
-slider.addEventListener('input',updateDelay);
-$('settingsBtn').addEventListener('click',e=>{e.stopPropagation();settings.classList.toggle('open')});
-document.addEventListener('click',e=>{if(!settings.contains(e.target)&&e.target!==$('settingsBtn'))settings.classList.remove('open')});
-quality.addEventListener('change',()=>{localStorage.setItem('vd-quality',quality.value);restartCamera()});
-camera.addEventListener('change',()=>{localStorage.setItem('vd-camera',camera.value);restartCamera()});
-mirrorBtn.addEventListener('click',()=>{mirrored=!mirrored;playback.classList.toggle('mirror',mirrored);mirrorBtn.textContent=mirrored?'On':'Off';localStorage.setItem('vd-mirror',mirrored?'1':'0')});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&running)say('Keep this screen active',2000)});
-window.addEventListener('pagehide',()=>{stopTracks();clearSegments()});
-// Restore tiny set of preferences.
-slider.value=localStorage.getItem('vd-delay')||'10';quality.value=localStorage.getItem('vd-quality')||'standard';camera.value=localStorage.getItem('vd-camera')||'environment';mirrored=localStorage.getItem('vd-mirror')==='1';playback.classList.toggle('mirror',mirrored);mirrorBtn.textContent=mirrored?'On':'Off';updateDelay();
+async function init(){if(!supported())return fail('This version needs WebCodecs. Update Safari/Chrome and open the app over HTTPS.');const cc=await codec();if(!cc)return fail('No compatible hardware video codec was found on this browser.');
+stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:W},height:{ideal:H},frameRate:{ideal:FPS,max:FPS}}});cam.srcObject=stream;await cam.play();const tr=stream.getVideoTracks()[0];const st=tr?.getSettings?.()||{};const diag=document.querySelector("#diag");if(diag)diag.textContent=`Camera input: ${st.width||"?"} × ${st.height||"?"} · ${st.frameRate?Math.round(st.frameRate)+" fps":"fps ?"}`;
+const ec={codec:cc.codec,width:W,height:H,bitrate:BITRATE,framerate:FPS,latencyMode:'realtime',bitrateMode:'variable',hardwareAcceleration:'prefer-hardware',...(cc.avc?{avc:cc.avc}:{})};
+encoder=new VideoEncoder({output:(chunk,meta)=>{const copy=new Uint8Array(chunk.byteLength);chunk.copyTo(copy);chunks.push({type:chunk.type,timestamp:chunk.timestamp,duration:chunk.duration||Math.round(1e6/FPS),data:copy});if(meta?.decoderConfig)configs.push({timestamp:chunk.timestamp,config:meta.decoderConfig});trim(chunk.timestamp)},error:e=>fail('Video encoder error: '+e.message)});encoder.configure(ec);
+decoder=new VideoDecoder({output:frame=>{if(frame.timestamp>=decodeTarget){ctx.drawImage(frame,0,0,W,H);lastShown=frame.timestamp}frame.close()},error:e=>{console.error(e)}});
+startPerf=performance.now();lastCapture=0;captureCount=0;droppedCapture=0;running=true;startBtn.textContent='Stop';loop();}
+let captureCount=0,droppedCapture=0;
+function capture(now){if(!running||cam.readyState<2||!encoder||encoder.state!=='configured')return;const elapsed=now-startPerf;const step=1000/FPS;if(elapsed-lastCapture<step*.92)return;lastCapture+=step;if(lastCapture<elapsed-step*2)lastCapture=elapsed;/* Never let encoder backlog stall the UI. */if(encoder.encodeQueueSize>3){droppedCapture++;return}const ts=Math.round(lastCapture*1000);try{const f=new VideoFrame(cam,{timestamp:ts});encoder.encode(f,{keyFrame:(captureCount%KEY_EVERY)===0});captureCount++;f.close()}catch(e){console.error(e)}}
+let playIndex=-1,playBasePerf=0,playBaseTs=0,currentDelay=delay,needSeek=true;
+function findKeyframe(target){for(let i=chunks.length-1;i>=0;i--){if(chunks[i].timestamp<=target&&chunks[i].type==='key')return i}return -1}
+async function seekPlayback(now,target){if(decodeBusy)return;const idx=findKeyframe(target);if(idx<0)return;decodeBusy=true;try{if(decoder.state!=='unconfigured')decoder.reset();let cfg=null;for(let i=configs.length-1;i>=0;i--){if(configs[i].timestamp<=chunks[idx].timestamp){cfg=configs[i].config;break}}if(!cfg){const cc=await codec();cfg={codec:cc.codec,codedWidth:W,codedHeight:H}}cfg={...cfg,hardwareAcceleration:'prefer-hardware',optimizeForLatency:true};decoder.configure(cfg);decodeTarget=target;for(let i=idx;i<chunks.length&&chunks[i].timestamp<=target;i++){const c=chunks[i];decoder.decode(new EncodedVideoChunk({type:c.type,timestamp:c.timestamp,duration:c.duration,data:c.data}));playIndex=i+1}await decoder.flush();playBasePerf=now;playBaseTs=target;currentDelay=delay;needSeek=false}catch(e){console.error('seek',e)}finally{decodeBusy=false}}
+async function render(now){if(viewMode==="live"){if(cam.readyState>=2)ctx.drawImage(cam,0,0,W,H);return}if(!chunks.length)return;const target=Math.max(0,Math.round((now-startPerf-delay*1000)*1000));if(target<=0)return;if(needSeek||Math.abs(delay-currentDelay)>.01||playIndex<0){await seekPlayback(now,target);return}if(decodeBusy||decoder.state!=='configured')return;const desired=playBaseTs+Math.round((now-playBasePerf)*1000);let fed=0;while(playIndex<chunks.length&&chunks[playIndex].timestamp<=desired+80000&&fed<6&&decoder.decodeQueueSize<8){const c=chunks[playIndex++];try{decoder.decode(new EncodedVideoChunk({type:c.type,timestamp:c.timestamp,duration:c.duration,data:c.data}));fed++}catch(e){needSeek=true;break}}}
+function loop(now=performance.now()){capture(now);render(now);raf=requestAnimationFrame(loop)}
+async function stop(){running=false;cancelAnimationFrame(raf);try{await encoder?.flush()}catch{};encoder?.close();decoder?.close();stream?.getTracks().forEach(t=>t.stop());encoder=decoder=stream=null;chunks=[];configs=[];lastShown=-1;playIndex=-1;needSeek=true;ctx.clearRect(0,0,W,H);startBtn.textContent='Start'}
+function applyQuality(q){quality=q;if(q===1080){W=1920;H=1080;BITRATE=12_000_000}else{W=1280;H=720;BITRATE=8_000_000}canvas.width=W;canvas.height=H;badge.textContent=`${quality}p · 30 fps · 60 s · v11 diagnostic`;document.querySelectorAll('.qbtn').forEach(b=>b.classList.toggle('active',Number(b.dataset.q)===q));panel.classList.remove('open')}
+gear.onclick=e=>{e.stopPropagation();panel.classList.toggle('open')};document.querySelectorAll('.qbtn').forEach(b=>b.onclick=async()=>{const q=Number(b.dataset.q);if(q===quality){panel.classList.remove('open');return}if(running)await stop();applyQuality(q)});document.addEventListener('pointerdown',e=>{if(!e.target.closest('.settings'))panel.classList.remove('open')});
+document.querySelectorAll(".modebtn").forEach(b=>b.onclick=()=>{viewMode=b.dataset.mode;document.querySelectorAll(".modebtn").forEach(x=>x.classList.toggle("active",x.dataset.mode===viewMode));panel.classList.remove("open");if(viewMode==="delay"){lastShown=-1;needSeek=true}});
+startBtn.onclick=()=>running?stop():init().catch(e=>fail(e.name==='NotAllowedError'?'Camera permission was denied. Allow camera access and reload.':e.message));
+function setDelay(v){delay=Math.max(1,Math.min(MAX,v));dEl.textContent=delay;lastShown=-1;needSeek=true}
+function hold(el,delta){let timer,int;const down=e=>{e.preventDefault();setDelay(delay+delta);timer=setTimeout(()=>int=setInterval(()=>setDelay(delay+delta),80),350)};const up=()=>{clearTimeout(timer);clearInterval(int)};el.addEventListener('pointerdown',down);['pointerup','pointercancel','pointerleave'].forEach(x=>el.addEventListener(x,up))}
+hold(document.querySelector('#minus'),-1);hold(document.querySelector('#plus'),1);
+if(!supported())fail('This version needs WebCodecs. On iPhone/iPad, use an up-to-date Safari version; on desktop, use a current Safari or Chrome.');
 })();
-</script>
-</body>
-</html>
+</script></body></html>
